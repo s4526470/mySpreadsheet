@@ -1,18 +1,23 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
+import { SheetComponent } from "./sheet/sheet.component";
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet],
-  template: `
-    <h1>Welcome to {{title}}!</h1>
-
-    <router-outlet></router-outlet>
+    selector: 'app-root',
+    standalone: true,
+    template: `
+    <head>
+	    <meta charset="utf-8" />
+	    <title>Convert Excel to HTML Table using JavaScript</title>
+	    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    </head>
+    <app-sheet></app-sheet>
   `,
-  styleUrl: './app.component.css'
+    styleUrl: './app.component.css',
+    imports: [CommonModule, RouterOutlet, SheetComponent]
 })
 export class AppComponent {
-  title = 'spreadsheet-project';
+  name = 'spreadsheet-project';  
+
 }

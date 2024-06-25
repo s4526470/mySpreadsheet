@@ -18,6 +18,4 @@ import { SheetComponent } from "./sheet/sheet.component";
     imports: [CommonModule, RouterOutlet, SheetComponent]
 })
 export class AppComponent {
-  name = 'spreadsheet-project';  
-
 }

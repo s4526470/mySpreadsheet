@@ -1,9 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 // import * as XLSX from 'xlsx';
 import * as XLSX from 'xlsx-js-style';
 import {MatSelectModule} from '@angular/material/select';
 import { Element } from '../element';
+import { UpvoteService } from '../services/upvote.service';
+import { Upvote } from '../models/upvote.model';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { IpInfoService } from '../services/ip-info.service';
+
 
 type AOA = any[][];
 type rule = { ruleId: number, ruleName: string};
@@ -11,17 +16,25 @@ type rule = { ruleId: number, ruleName: string};
 @Component({
   selector: 'app-sheet',
   standalone: true,
-  imports: [CommonModule, MatSelectModule],
+  imports: [CommonModule, MatSelectModule, HttpClientModule],
   template: `
     <div class="container">
-    <h2 class="text-center mt-4 mb-4">DECHAO FIRST PROJECT</h2>
+    <h2 class="text-center mt-4 mb-4">TABLE VERIFICATION TOOL</h2>
     <div class="card">
-    	<div class="card-header"><b>Select Excel File</b></div>
+    	<div class="card-header"><b>Select Excel File</b>
+      <button class="button-48" role="button" (click)="addUpvote()">
+        <span class="text"><i class="fa fa-thumbs-up" style="color: #8A2BE2"></i>
+        <i class="fa fa-thumbs-up" style="font-size:24px; color: #FF4500"></i>
+        <i class="fa fa-thumbs-up" style="font-size:36px; color: #4682B4" ></i>
+        </span>
+      </button>
+
+    </div>
     	<div class="card-body">
         <input type="file" (change)="onFileChange($event)" multiple="false"  id="excel_file"/>
     	</div>
       <div class="card-body">
-        <button (click)="reloadCurrentPage()">Reload SpreadSheet</button>
+        <button (click)="reloadCurrentPage()">Clear Data</button>
     	</div>
       <div class="card-body">
         <button (click)="verifyElement()">Verify Elements</button>
@@ -30,8 +43,7 @@ type rule = { ruleId: number, ruleName: string};
         <button (click)="exportExcel()">Export Excel!</button>
       </div>
     </div>
-      <div id="excel_data" class="mt-5">
-    </div>
+    <div id="excel_data" class="mt-5"></div>
     </div>
   <section class="intro">
   <div class="bg-image h-100" style="background-color: #f5f7fa;">
@@ -79,7 +91,13 @@ type rule = { ruleId: number, ruleName: string};
 
 
 export class SheetComponent implements OnInit{
-  
+
+  http = inject(HttpClient);
+  // Use the Upvote model
+  upvotes: Upvote[] = [];  
+  // Use the Upvote model here
+  newUpvote: Upvote = { ip: '123.45.67.89', country:'New York', date: 'September 30, 2024 at 23:23:23' };
+
   ruleDict: rule[] = [
     // Objects in the array
     { ruleId: 1, ruleName: 'Only Number'},
@@ -108,11 +126,20 @@ export class SheetComponent implements OnInit{
   wopts: XLSX.WritingOptions = { bookType: 'xlsx', type: 'array' };
   fileName: string = 'SheetJS.xlsx';
 
-  constructor() { }
+  constructor(private upvoteService: UpvoteService, private ipInfoService: IpInfoService) { }
 
   ngOnInit() {
-    // check whether it was the empty table
-    if (this.columnNumber != 0) {
+    // Define the rough data from the session
+    const roughData = localStorage.getItem('roughData');
+    // Define the column number from the session
+    const columnNum = localStorage.getItem('columnNumber');
+    // Get the number of columns and arrange increasingly from the session
+    const columnLenList = localStorage.getItem('columnLengthList');
+    if (roughData && columnNum && columnLenList) {
+      this.setDefaultRuleList(+columnNum);
+      this.columnLengthList = JSON.parse(columnLenList);
+      this.finalCleanData = this.cutomizedElementObjectArray(JSON.parse(roughData), +columnNum);
+    } else {
       this.setDefaultRuleList(this.columnNumber);
       this.finalCleanData = this.cutomizedElementObjectArray(this.data, this.columnNumber);
     }
@@ -121,7 +148,6 @@ export class SheetComponent implements OnInit{
   protected cutomizedElementObjectArray(data: AOA, columnNum: number): Element[][] {
     const tempFinalCleanData: Element[][] = []
     const tempCleanData = this.customizedArray(data, columnNum);
-    // const againstRuleList = this.originateAgainstRuleList(tempCleanData);
     for (let i = 0; i < tempCleanData.length; i++) {
       tempFinalCleanData[i] = Array(columnNum);
       for (let j = 0; j < tempCleanData[i].length; j++) {
@@ -147,7 +173,7 @@ export class SheetComponent implements OnInit{
 
       /* save data */
       this.data = <AOA>(XLSX.utils.sheet_to_json(ws, { header: 1 }));
-      
+
       // Get the colulmnNumber
       this.columnLengthList = this.getColumnLength(this.data);
       this.columnNumber = this.columnLengthList.slice(-1)[0];
@@ -157,6 +183,15 @@ export class SheetComponent implements OnInit{
 
       // set the default rule from each column
       this.setDefaultRuleList(this.columnNumber);
+
+      // set the excel data to the local storage
+      localStorage.setItem('roughData', JSON.stringify(this.data));
+
+      // set the column number to the local storage
+      localStorage.setItem('columnNumber', String(this.columnNumber));
+
+      // set the column list to the local storage
+      localStorage.setItem('columnLengthList', JSON.stringify(this.columnLengthList));
     };
     reader.readAsBinaryString(target.files[0]);
   }
@@ -182,6 +217,7 @@ export class SheetComponent implements OnInit{
 
    /* Refresh the page */
   reloadCurrentPage() {
+    localStorage.clear();
     window.location.reload();
    }
   
@@ -208,6 +244,53 @@ export class SheetComponent implements OnInit{
       'white-space':'normal',
       
     }
+  }
+
+  // Add the upvotes from different IP to the firebase db
+  addUpvote() {
+    let currentDate = 'September 30, 2024 at 23:23:23';
+    let currentIPAddress = '123.45.67.89';
+    let currentLocation = 'New South Wales';
+    this.newUpvote = { ip: currentIPAddress, country: currentLocation, date: currentDate };
+
+    // Get the data from the API
+    this.ipInfoService.getIpInfo().subscribe({
+      next: (data) => {
+        currentIPAddress = data.ip;
+        currentLocation = `${data.city}, ${data.region}, ${data.country}`;
+        currentDate = this.getBeijingTime();
+        this.newUpvote = { ip: currentIPAddress, country: currentLocation, date: currentDate }
+      },
+      error: (err) => {
+        console.error('Error fetching posts', err);
+      },
+      complete: () => {
+        this.upvoteService.addUpvote(this.newUpvote).then(() => {
+          this.newUpvote = { ip: '123.45.67.89', country:'New York', date: 'September 30, 2024 at 23:23:23' }; // Reset form
+        });
+      }
+    });
+  }
+
+  // Record the date in Shanghai time zone after the user click the button
+  protected getBeijingTime(): string {
+    const now = new Date();
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Shanghai',  // Timezone for Beijing
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false,
+    };
+    return now.toLocaleString('en-US', options);
+  }
+
+  // Use IPInfo API to get the user IP information after clicking
+  getUserIPInfo() {
+
   }
 
   verifyElement() {
@@ -259,7 +342,7 @@ export class SheetComponent implements OnInit{
       // Let the data become the same length array
       tempCleanData[i] = Array(columnNum);
       for (let j = 0; j < data[i].length; j++) {
-        tempCleanData[i][j] = this.data[i][j];
+        tempCleanData[i][j] = data[i][j];
       }
     }
     return tempCleanData;
@@ -292,3 +375,7 @@ export class SheetComponent implements OnInit{
     XLSX.writeFile(wb, "output-sheet.xlsx");
   }
 }
+function next(value: any): void {
+  throw new Error('Function not implemented.');
+}
+

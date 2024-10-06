@@ -2,6 +2,10 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { SheetComponent } from "./sheet/sheet.component";
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+
 
 @Component({
     selector: 'app-root',
@@ -15,7 +19,7 @@ import { SheetComponent } from "./sheet/sheet.component";
     <app-sheet></app-sheet>
   `,
     styleUrl: './app.component.css',
-    imports: [CommonModule, RouterOutlet, SheetComponent]
+    imports: [CommonModule, RouterOutlet, SheetComponent, HttpClientModule]
 })
 export class AppComponent {
 }
